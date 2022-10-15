@@ -1,0 +1,144 @@
+--LETS LOOK AT OUT SHARKTANK DATA TABLE
+
+select * from sharktank..data;
+
+--GET THE SHAPE OF OUR TABLE 
+
+drop table if exists #rowscolumns
+create table #rowscolumns
+(rowscount int,colcount int);
+
+insert into #rowscolumns
+select count(*), (SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+ WHERE table_catalog = 'sharktank' -- the database
+   AND table_name = 'data')
+   from sharktank..data
+
+select * from #rowscolumns;
+
+--RENAME 1ST COLUMN NAME IN TO EPISODES
+
+sp_rename 'data.Episode','Episodes','column';
+
+--LETS CHECK NUMBER OF EPISODES
+
+select count(distinct Episodes) No_of_episodes
+from sharktank..data;
+
+--NUMBER OF BRANDS
+
+select count(distinct Brand) No_of_Brands
+from sharktank..data
+
+--TOTAL MALE
+
+select sum(Male) total_male
+from data
+
+--TOTAL FEMALE
+
+select sum(Female) total_Female
+from data
+
+--NUMBER OF BRANDS RECEIVED FUNDING
+
+select sum(a.invested_notinvested) brands_received_funds from(
+select [Amount Invested lakhs], case when [Amount Invested lakhs]>0 then 1 else 0 end as invested_notinvested 
+from sharktank..data) a
+
+--% OF FUNDED BRANDS THOSE APPEARED IN SHARKTANK
+
+select (cast(sum(a.invested_notinvested)as float) / cast(COUNT(*) as float))*100 as pct_funded_brands from(
+select [Amount Invested lakhs], case when [Amount Invested lakhs]>0 then 1 else 0 end as invested_notinvested 
+from sharktank..data) a
+
+-- avg age group of contestants
+
+select [Avg age],count([Avg age]) cnt 
+from sharktank..data 
+group by [Avg age] order by cnt desc
+
+-- location group of contestants
+
+select location,count(location) cnt 
+from sharktank..data 
+group by location order by cnt desc
+
+-- sector group of contestants
+
+select sector,count(sector) cnt 
+from sharktank..data group by sector 
+order by cnt desc
+
+--partner deals
+
+select partners,count(partners) cnt 
+from sharktank..data  where partners!='-' 
+group by partners order by cnt desc
+
+--TOTAL INVESTED AMOUNT
+ 
+select sum([Amount Invested lakhs])/100 invested_amt_crs
+from sharktank..data
+
+--AVERAGE EQUITY TAKEN IN %
+
+select avg([Equity Taken %]) from(select *
+from sharktank..data
+where [Equity Taken %]>0) a
+
+--MAX% OF EQUITY TAKEN
+
+select max([Equity Taken %]) 
+from sharktank..data
+
+--NAME OF BRAND WHICH SOLD MAX% OF EQUITY AND PARTNER WHO AQUAINTED
+
+select Brand, Partners from sharktank..data
+where [Equity Taken %]=75
+
+--NUMBER OF SHOWS ASHNEER APPEARED
+
+select count([Ashneer Amount Invested])
+from sharktank..data
+
+--NUMBER OF BRANDS ASHNEER INVESTED IN 
+
+select sum(a.ashneer_invested_brands) from(select case when [Ashneer Amount Invested]>0 then 1 else 0 end as ashneer_invested_brands 
+from sharktank..data) a
+
+--INVESTED AMOUNT BY ASHNEER AND AVERAGE AMOUNT
+
+SELECT 'Ashneer' as keyy,SUM(C.[Ashneer Amount Invested]),AVG(C.[Ashneer Amount Invested]) 
+FROM (SELECT * FROM sharktank..DATA  WHERE [Ashneer Amount Invested]!=0 AND [Ashneer Amount Invested] IS NOT NULL) C
+
+-- CREATING ASHNEER METRICS
+
+
+select m.keyy,m.total_deals_present,m.total_deals,n.total_amount_invested,n.avg_equity_taken from
+
+(select a.keyy,a.total_deals_present,b.total_deals from(
+
+select 'Ashneer' as keyy,count([Ashneer Amount Invested]) total_deals_present from sharktank..data where [Ashneer Amount Invested] is not null) a
+
+inner join (
+select 'Ashneer' as keyy,count([Ashneer Amount Invested]) total_deals from sharktank..data 
+where [Ashneer Amount Invested] is not null AND [Ashneer Amount Invested]!=0) b 
+
+on a.keyy=b.keyy) m
+
+inner join 
+
+(SELECT 'Ashneer' as keyy,SUM(C.[Ashneer Amount Invested]) total_amount_invested,
+AVG(C.[Ashneer Amount Invested]) avg_equity_taken
+FROM (SELECT * FROM sharktank..DATA  WHERE [Ashneer Amount Invested]!=0 AND [Ashneer Amount Invested] IS NOT NULL) C) n
+
+on m.keyy=n.keyy
+
+--STARTUPS WITH HIGHEST INVESTMENTS FROM VARIOUS SECTORS
+
+select c.* from 
+(select brand,sector,[Amount Invested lakhs],rank() over(partition by sector order by [Amount Invested lakhs] desc) rnk 
+from sharktank..data) c
+where c.rnk=1
