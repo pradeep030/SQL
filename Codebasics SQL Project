@@ -129,15 +129,17 @@ SELECT * FROM request_7;
 --    The final output contains these fields sorted by the total_sold_quantity | Quarter, total_sold_quantity.
 
 CREATE VIEW request_8 AS
-					(SELECT CASE QUARTER(date)
-						WHEN 1 THEN 'Q1'
-						WHEN 2 THEN 'Q2'
-						WHEN 3 THEN 'Q3'
-						WHEN 4 THEN 'Q4' END AS Quarter, sum(sold_quantity) AS total_sold_quantity
-						FROM gdb023.fact_sales_monthly
-							WHERE fiscal_year=2020
-							GROUP BY Quarter
-							ORDER BY total_sold_quantity DESC);
+					(WITH cte1 as (SELECT date, MONTH(date) as month, sold_quantity 
+							FROM fact_sales_monthly
+								WHERE fiscal_year=2020)
+					 SELECT CASE
+							WHEN MONTH(date) in (9,10,11) THEN 'Q1'
+							WHEN MONTH(date) in (12,1,2) THEN 'Q2'
+							WHEN MONTH(date) in (3,4,5) THEN 'Q3'
+							WHEN MONTH(date) in (6,7,8) THEN 'Q4' END AS Quarter, SUM(sold_quantity) AS total_sold_quantity
+								FROM cte1
+									GROUP BY Quarter
+									ORDER BY total_sold_quantity DESC);
 SELECT * FROM request_8;
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Request 9:- Which channel helped to bring more gross sales in the fiscal year 2021 and the percentage of contribution? 
